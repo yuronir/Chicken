@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Galbijjim Searcher</string>
+    
+    <string name="context_image_share">Share this image</string>
+    <string name="context_link_share">Share this link</string>
+    <string name="context_link_open">Open this image</string>
+    
+    <string name="error_try_again">Something worng&#8230; Please try again.</string>
+    <string name="reload">Reloading&#8230;</string>
+    
+    <string name="menu_category_search_for">Search for</string>
+    <string name="menu_item_search_for_1">galbijjim</string>
+    <string name="menu_item_search_for_2">braised short ribs</string>
+    <string name="menu_item_search_for_3">갈비찜</string>
+    <string name="menu_item_search_for_4">炖排骨</string>
+    <string name="menu_item_search_for_5">カルビチム</string>
+    
+
+</resources>

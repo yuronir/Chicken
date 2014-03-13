@@ -1,0 +1,180 @@
+package com.example.chicken;
+
+import java.util.ArrayList;
+
+import android.annotation.SuppressLint;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.CompressFormat;
+import android.os.Build;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.ViewTreeObserver.OnGlobalLayoutListener;
+import android.widget.BaseAdapter;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import com.nostra13.universalimageloader.core.assist.FailReason;
+import com.nostra13.universalimageloader.core.assist.ImageLoadingListener;
+import com.nostra13.universalimageloader.core.assist.ImageScaleType;
+
+public class ImageAdapter extends BaseAdapter{
+	private Context mContext;
+	private LayoutInflater mInflater;
+	
+	public ArrayList<Image> chickenList;
+	private int itemWidth = 0;
+
+	
+	private ImageLoader mImageLoader = ImageLoader.getInstance();
+	private DisplayImageOptions mOptions;
+	private ImageLoaderConfiguration config; 
+	
+//	private Integer[] mThumbIds = {
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//		R.drawable.chrysanthemum, R.drawable.desert,
+//	};
+	
+//	public ImageAdapter(Context c, ArrayList<Image> chickenList){
+//		this.chickenList = chickenList;
+//		mContext = c;
+//		mInflater = (LayoutInflater) c.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
+//	}
+	
+	public ImageAdapter(Context context, ArrayList<Image> imageList){
+		mContext = context;
+		chickenList = imageList;
+		mInflater = (LayoutInflater) context.getSystemService(Service.LAYOUT_INFLATER_SERVICE);
+		setImageOptions();
+	}
+	
+	@Override
+	public int getCount(){
+		return chickenList.size();
+	}
+	
+	@Override
+	public Image getItem(int position){
+		return chickenList.get(position);
+	}
+	
+	@Override
+	public long getItemId(int position){
+		return position;
+	}
+	
+	@Override
+	public View getView(final int position, View convertView, ViewGroup parent){
+		
+		ViewHolder viewHolder;
+		
+		if (convertView == null || convertView.getId() != R.layout.gridview_image){
+			viewHolder = new ViewHolder();
+			
+			convertView = mInflater.inflate(R.layout.gridview_image, null);
+			viewHolder.imageview = (ImageView) convertView.findViewById(R.id.gridview_image_imageview);
+			
+			convertView.setTag(viewHolder);
+		} else {
+			viewHolder = (ViewHolder) convertView.getTag();
+		}
+		
+		final ImageView tempView = viewHolder.imageview;
+		if (tempView.getHeight() == 0) {
+			ViewTreeObserver vto = tempView.getViewTreeObserver();
+		    vto.addOnGlobalLayoutListener(new OnGlobalLayoutListener() {
+		        @SuppressLint("NewApi")
+				@SuppressWarnings("deprecation")
+		        @Override
+		        public void onGlobalLayout() {
+		            int width  = tempView.getWidth();
+		            itemWidth = width;
+		            
+//		            Log.i("test" , position + " width: " + width);
+		    
+	    			final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) tempView.getLayoutParams();
+	    			lp.height = itemWidth;
+	    			tempView.setLayoutParams(lp);
+		            
+		            if (Build.VERSION.SDK_INT < 16) {
+		            	tempView.getViewTreeObserver().removeGlobalOnLayoutListener(this);
+		            } else {
+		            	tempView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+		            }
+		        }
+		    });
+		    
+		    if(itemWidth != 0 && tempView.getLayoutParams() != null){
+				final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) tempView.getLayoutParams();
+				lp.height = itemWidth;
+				tempView.setLayoutParams(lp);
+			}
+		}
+		
+		convertView.setOnClickListener(new View.OnClickListener() { //버튼 눌렀을 때 실행.(setonclick은 어느 context에서도 이용 가능)
+			@Override
+			public void onClick(View v) {
+				Intent it = new Intent(mContext, ViewPagerActivity.class);   
+				it.putExtra("index", position);
+				mContext.startActivity(it);
+			}
+		});
+		
+    	mImageLoader.displayImage(getItem(position).getUrl(), viewHolder.imageview, mOptions);
+    	Bitmap bm = mImageLoader.getMemoryCache().get(getItem(position).getUrl());
+    	
+		return convertView;
+	}
+	
+	class ViewHolder {
+		ImageView imageview;
+	}
+	
+	public void setImageOptions(){
+		mOptions = new DisplayImageOptions.Builder()
+		//    .displayer(new FadeInBitmapDisplayer(200))
+		//    .resetViewBeforeLoading(true) // 이미지뷰에 표시하기 전에 이미지뷰를 비워줍니다.
+		.cacheOnDisc(true) // 디스크 캐시를 사용
+		.imageScaleType(ImageScaleType.EXACTLY) // 표시할 이미지의 scaletype을 정합니다.
+		.bitmapConfig(Bitmap.Config.RGB_565) // 비트맵의 속성을 정의합니다.(ARGB_8888 or RGB_565)
+		.build();
+		
+		config 	= new ImageLoaderConfiguration.Builder(mContext)
+		.discCacheExtraOptions(500, 500, CompressFormat.PNG, 0, null)
+		.build();
+		ImageLoader.getInstance().init(config);
+	}
+	
+	public void setImages(ArrayList<Image> images){
+		chickenList = images;
+		if(ViewPagerActivity.mAdapter != null) ViewPagerActivity.mAdapter.notifyDataSetChanged();
+		if(ViewPagerActivity.mHAdapter != null) ViewPagerActivity.mHAdapter.notifyDataSetChanged();
+		notifyDataSetChanged();
+	}
+
+	public ArrayList<Image> getImages(){
+		return chickenList;
+	}
+	
+	public void addImages(ArrayList<Image> images){
+		chickenList.addAll(images);
+		if(ViewPagerActivity.mAdapter != null) ViewPagerActivity.mAdapter.notifyDataSetChanged();
+		if(ViewPagerActivity.mHAdapter != null) ViewPagerActivity.mHAdapter.notifyDataSetChanged();
+		notifyDataSetChanged();
+	}
+	
+}
+ 

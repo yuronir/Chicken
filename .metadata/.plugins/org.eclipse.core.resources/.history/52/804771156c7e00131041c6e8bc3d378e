@@ -1,0 +1,304 @@
+package com.example.chicken;
+
+import uk.co.senab.photoview.PhotoView;
+import uk.co.senab.photoview.PhotoViewAttacher;
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.Bitmap.CompressFormat;
+import android.os.Bundle;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
+import android.support.v4.view.ViewPager.OnPageChangeListener;
+import android.util.DisplayMetrics;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
+import android.view.WindowManager;
+import android.view.animation.Animation;
+import android.view.animation.Transformation;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+
+import com.actionbarsherlock.app.SherlockFragmentActivity;
+import com.actionbarsherlock.view.Menu;
+import com.actionbarsherlock.view.MenuItem;
+import com.actionbarsherlock.view.SubMenu;
+import com.example.CacheUtils.FileCacheContainer.FileCacheFactory;
+import com.example.CacheUtils.ImageCacheContainer.ChainedImageCache;
+import com.example.CacheUtils.ImageCacheContainer.ImageCache;
+import com.example.CacheUtils.ImageCacheContainer.ImageCacheFactory;
+import com.example.chicken.MainActivity.GridFragment;
+import com.nostra13.universalimageloader.core.DisplayImageOptions;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import com.nostra13.universalimageloader.core.assist.FailReason;
+import com.nostra13.universalimageloader.core.assist.ImageLoadingListener;
+import com.nostra13.universalimageloader.core.assist.ImageScaleType;
+
+@SuppressLint("NewApi")
+public class ViewPagerActivity extends SherlockFragmentActivity {
+	
+	private final static ImageLoader mImageLoader = ImageLoader.getInstance();
+
+	private static DisplayImageOptions mOptions;
+	private ImageLoaderConfiguration config; 
+
+	public DisplayMetrics dM = new DisplayMetrics();	//화면 너비를 구하기 위한 클래스
+	
+	private ViewPager mViewPager;
+	private HorizontalListView mHView;
+	public static HorizontalViewAdapter mHAdapter;
+	public static ViewPagerAdapter mAdapter;
+	public Context mContext;
+	
+	public static ViewGroup mContainer;
+	public static PhotoView mPhotoView;
+	
+	PhotoViewAttacher mAttacher;
+	
+	//캐시 관련.
+	private final int maxKBSize = 1024*10;	//파일캐시 허용량 : 10MB
+	private ChainedImageCache imageCache;
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_fullview);
+		
+		mContext = this;
+		((WindowManager) mContext.getSystemService(WINDOW_SERVICE)).getDefaultDisplay().getMetrics(dM);
+		
+		//이미지, 파일 캐시 초기화.
+		FileCacheFactory.initialize(mContext);
+		ImageCacheFactory.getInstance().createTwoLevelCache("imagecache", 40);
+		FileCacheFactory.getInstance().create("imagecache", maxKBSize);
+		imageCache = (ChainedImageCache) ImageCacheFactory.getInstance().get("imagecache");
+		
+		setImageOptions();
+		
+        mViewPager = (ViewPager) findViewById(R.id.full_viewpager);		//뷰페이저
+        mAdapter = new ViewPagerAdapter();
+		mViewPager.setAdapter(mAdapter);
+		        
+        mHView = (HorizontalListView) findViewById(R.id.listview);			//가로리스트
+		mHView.post(new Runnable() {
+			
+			@Override
+			public void run() {
+				mHAdapter = new HorizontalViewAdapter(mContext) {
+
+					@Override
+					protected void changePhoto(View v, int position) {
+
+						if (isScroll) {
+							isScroll = false;
+						} else {					
+							setImageCenter(position);
+							mViewPager.setCurrentItem(position);
+						}
+					}
+				};
+				mHView.setAdapter(mHAdapter);
+			}
+		});
+		
+		mHView.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+			@Override
+			public void onItemSelected(AdapterView<?> arg0, View arg1,
+					int arg2, long arg3) {
+				//끝에서 3번째보다 이후 아이템을 선택했을 시 추가 로딩
+				if(MainActivity.adapter.chickenList.size() - arg2 < 4 && MainActivity.existMoreResult && !MainActivity.isLoading){
+					((GridFragment)MainActivity.mFragmentManager.findFragmentById(R.id.grid_fragment)).LoadMore();					
+				}
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0) {}
+		});
+		
+		mViewPager.setOnPageChangeListener(new OnPageChangeListener() {
+			
+			@Override
+			public void onPageSelected(int position){
+				if(position > mAdapter.getCount() -3 && MainActivity.existMoreResult && !MainActivity.isLoading){
+					((GridFragment)MainActivity.mFragmentManager.findFragmentById(R.id.grid_fragment)).LoadMore();
+				}
+				setImageCenter(position);
+			}
+			
+			@Override public void onPageScrolled(int arg0, float arg1, int arg2) {}
+			@Override public void onPageScrollStateChanged(int arg0) {}
+		});
+
+        mViewPager.setCurrentItem(getIntent().getIntExtra("index", 0));
+	}
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) { 
+		// Inflate the menu; this adds items to the action bar if it is present.
+		SubMenu sMenu = menu.addSubMenu("옵션");
+		sMenu.add(0, 1, 0, "이미지 편집");
+		sMenu.add(0, 2, 0, "Facebook에 업로드하기");
+		sMenu.getItem().setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS | MenuItem.SHOW_AS_ACTION_WITH_TEXT);
+		
+		return true;
+	}
+	
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+    	switch(item.getItemId()){
+    		case 1:
+    			imageCachingForEdit(mViewPager.getCurrentItem());			//이미지 저장.
+    			Intent it = new Intent(mContext, ImageEditActivity.class);   
+				mContext.startActivity(it);
+    			break;
+    		case 2:
+    			break;
+    		default:
+    			return false;
+    	}
+    	
+    	return true;
+    }
+	
+	
+	static class ViewPagerAdapter extends PagerAdapter {
+
+		@Override
+		public int getCount() {
+			return MainActivity.adapter.chickenList.size();
+		}
+	
+		@Override
+		public View instantiateItem(final ViewGroup container, int position) {
+			
+			mPhotoView = new PhotoView(container.getContext());
+			mContainer = container;
+		
+			mImageLoader.displayImage(MainActivity.adapter.chickenList.get(position).getUrl(), mPhotoView, mOptions);
+	    	mImageLoader.loadImage(MainActivity.adapter.chickenList.get(position).getUrl(), new ImageLoadingListener() {
+				
+				@Override
+				public void onLoadingStarted(String arg0, View arg1) {
+					// TODO Auto-generated method stub
+					
+				}
+				
+				@Override
+				public void onLoadingFailed(String arg0, View arg1, FailReason arg2) {
+					// TODO Auto-generated method stub
+					
+				}
+				
+				@Override
+				public void onLoadingComplete(String arg0, View arg1, Bitmap arg2) {
+					// TODO Auto-generated method stub
+					
+				}
+				
+				@Override
+				public void onLoadingCancelled(String arg0, View arg1) {
+					// TODO Auto-generated method stub
+					
+				}
+			});
+			
+			// Now just add PhotoView to ViewPager and return it
+			mContainer.addView(mPhotoView, LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+
+			return mPhotoView;
+		}
+
+		@Override
+		public void destroyItem(ViewGroup container, int position, Object object) {
+			container.removeView((View) object);
+		}
+
+		@Override
+		public boolean isViewFromObject(View view, Object object) {
+			return view == object;
+		}
+	}
+	
+	/**
+	 *	선택한 view를 리스트의 센터에 가져다줌. 
+	 */
+	public void setImageCenter(View v){
+		int[] lo = new int[2];
+		v.getLocationOnScreen(lo);
+		
+		int posX = lo[0];								//그림의 X좌표
+		int halfWidth = (int) (v.getWidth()*0.5f);		//그림 너비의 반
+		int halfScreenWidth = dM.widthPixels/2;	//화면 정중앙 좌표
+		final int scroll = posX + halfWidth - halfScreenWidth;
+		final ScrollAnimation ani = new ScrollAnimation(mHView.getScrollX() + scroll, mHView);
+		ani.setDuration(200);
+		mHView.startAnimation(ani);
+	}
+	
+	public void setImageCenter(int position) {
+		final int itemWidth = getResources().getDimensionPixelSize(R.dimen.horizontalscrollview_image_size);
+		final int layoutWidth = dM.widthPixels;
+		final int x = position*itemWidth - layoutWidth/2 + itemWidth/2;
+		
+		final ScrollAnimation ani = new ScrollAnimation(x, mHView);
+		ani.setDuration(200);
+		mHView.startAnimation(ani);
+	}
+	
+	class ScrollAnimation extends Animation {
+		private int startX;
+		private int endX;
+		private int deltaX;
+		
+		private HorizontalListView view;
+		
+		public ScrollAnimation(int x, HorizontalListView view) {
+			endX = x;
+			this.view = view;
+		}
+		
+		private boolean isInit = false;
+		@Override
+		protected void applyTransformation(float interpolatedTime, Transformation t) {
+			if (!isInit) {
+				startX = view.mScroller.getCurrX();;
+				deltaX = endX - startX;
+				isInit = true;
+			}
+			final int x = (int)(startX + deltaX*interpolatedTime);
+//			Log.i("applyTransformation", "x: " + x);
+			view.scrollTo(Math.max(0, x));
+			super.applyTransformation(interpolatedTime, t);
+		}
+	}
+
+	public void setImageOptions(){
+		config 	= new ImageLoaderConfiguration.Builder(mContext)
+		.discCacheExtraOptions(500, 500, CompressFormat.PNG, 0, null)
+		.build();
+		ImageLoader.getInstance().init(config);
+		
+		mOptions = new DisplayImageOptions.Builder()
+//        .displayer(new FadeInBitmapDisplayer(200))
+//        .resetViewBeforeLoading(true) // 이미지뷰에 표시하기 전에 이미지뷰를 비워줍니다.
+        .cacheOnDisc(true) // 디스크 캐시를 사용
+        .imageScaleType(ImageScaleType.EXACTLY) // 표시할 이미지의 scaletype을 정합니다.
+        .bitmapConfig(Bitmap.Config.RGB_565) // 비트맵의 속성을 정의합니다.(ARGB_8888 or RGB_565)
+        .build();
+	}
+	
+	/**
+	 * 편집을 위해 이미지 캐싱한다.
+	 * @param position
+	 */
+	public void imageCachingForEdit(int position){
+		imageCache.clear();
+		Bitmap bitmap = ImageUtils.getBitmap(MainActivity.adapter.chickenList.get(position).getUrl());
+		imageCache.addBitmap(position + "", bitmap);
+	}
+}

@@ -1,0 +1,19 @@
+1389664979480	Rename type 'Utils'
+1389667109682	Rename field 'planets_array'
+1389673332038	Copy file
+1389673796880	Delete element
+1389673799818	Delete element
+1389673900637	Delete element
+1389673923946	Rename resource 'activity_image.xml'
+1389687247614	Rename local variable 'mIcon_val'
+1389752323254	Copy file
+1389752416107	Move compilation unit
+1389752471920	Rename package 'CacheUtils'
+1389757370936	Delete element
+1389766664005	Rename compilation unit 'FileCacheImpl.java'
+1389770912110	Delete element
+1389773327918	Rename type 'CacheContainer'
+1389773352912	Rename field 'IruCache'
+1389920811634	Copy file
+1389920814320	Copy file
+1389942667549	Delete element

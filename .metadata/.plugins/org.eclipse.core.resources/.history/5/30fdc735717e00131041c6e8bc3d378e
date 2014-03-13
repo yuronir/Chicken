@@ -1,0 +1,30 @@
+package com.example.chicken;
+
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.widget.ImageView;
+
+import com.nostra13.universalimageloader.cache.memory.MemoryCacheAware;
+import com.nostra13.universalimageloader.core.ImageLoader;
+
+public class ImageEditActivity extends Activity {
+
+	@SuppressWarnings("unused")
+	private Context mContext;
+	private ImageView mImageView;
+	
+	private final static ImageLoader mImageLoader = ImageLoader.getInstance();
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_image_editor);
+
+		mContext = this;
+		
+		String src = getIntent().getStringExtra("url");
+		MemoryCacheAware<String, Bitmap> dddd = mImageLoader.getMemoryCache();
+	}
+}

@@ -1,0 +1,28 @@
+package com.example.chicken;
+
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.util.Log;
+
+import com.nostra13.universalimageloader.cache.disc.DiscCacheAware;
+import com.nostra13.universalimageloader.cache.memory.MemoryCacheAware;
+
+public class ImageEditActivity extends Activity {
+
+	@SuppressWarnings("unused")
+	private Context mContext;
+	
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_image_editor);
+
+		mContext = this;
+		
+		String src = getIntent().getStringExtra("url");
+		Log.i("", ""+MainActivity.adapter.chickenList.size());
+		DiscCacheAware dddd = MainActivity.adapter.mImageLoader.getDiscCache();
+	}
+}
