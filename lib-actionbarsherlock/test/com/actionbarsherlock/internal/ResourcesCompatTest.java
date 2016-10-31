@@ -1,4 +1,4 @@
-package com.actionbarsherlock.internal;
+/*package com.actionbarsherlock.internal;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,4 +20,4 @@ public class ResourcesCompatTest {
         assertThat(cleanActivityName("com.jakewharton.test", ".ui.SomeClass")) //
             .isEqualTo("com.jakewharton.test.ui.SomeClass");
     }
-}
+}*/
